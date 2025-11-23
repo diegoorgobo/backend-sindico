@@ -2,8 +2,14 @@ import os
 import uvicorn
 import json
 import uuid
+import datetime
+
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Literal
+
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from database import Base
 
 from fastapi import FastAPI, Depends, HTTPException, status, Body, Query, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -80,6 +86,51 @@ class ManutencaoResponse(BaseModel):
     tarefa_id: int; tipo_tarefa: str; status_tarefa: str; data_proximo_vencimento: Optional[date]; detalhes_agendamento_semanal: Optional[str]; data_ultima_execucao: Optional[date]
     class Config: orm_mode = True
 class FinanceiroDashboardResponse(BaseModel): total_receitas: float; total_despesas: float; lucratividade: float; total_pendente: float
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    name = Column(String)
+    hashed_password = Column(String)
+    role = Column(String, default="resident") # 'admin', 'resident', 'staff'
+    is_active = Column(Boolean, default=True)
+    
+    # --- NOVOS CAMPOS ---
+    unit = Column(String, nullable=True)  # Apartamento
+    block = Column(String, nullable=True) # Bloco
+    phone = Column(String, nullable=True) # Telefone
+    # --------------------
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relacionamentos
+    inspections = relationship("Inspection", back_populates="owner")
+    service_orders = relationship("ServiceOrder", back_populates="requester")
+
+# ... (Mantenha as classes Inspection e ServiceOrder como estavam)
+class Inspection(Base):
+    __tablename__ = "inspections"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    description = Column(String)
+    photo_url = Column(String, nullable=True)
+    ai_analysis = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    owner = relationship("User", back_populates="inspections")
+
+class ServiceOrder(Base):
+    __tablename__ = "service_orders"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    description = Column(String)
+    status = Column(String, default="pending")
+    requester_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    requester = relationship("User", back_populates="service_orders")
+
 
 # --- Helpers ---
 def verify_password(plain, hashed): return pwd_context.verify(plain, hashed)
@@ -219,3 +270,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
 
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+
