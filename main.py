@@ -103,7 +103,7 @@ class User(Base):
     phone = Column(String, nullable=True) # Telefone
     # --------------------
 
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relacionamentos
     inspections = relationship("Inspection", back_populates="owner")
@@ -270,6 +270,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
 
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+
 
 
 
