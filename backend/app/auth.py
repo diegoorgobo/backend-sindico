@@ -16,10 +16,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    # CORREÇÃO: Corta a senha se for maior que 72 chars para evitar o erro do bcrypt
+    secure_password = plain_password[:72] if plain_password else ""
+    return pwd_context.verify(secure_password, hashed_password)
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    # CORREÇÃO: Corta a senha se for maior que 72 chars
+    secure_password = password[:72] if password else ""
+    return pwd_context.hash(secure_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -49,4 +53,5 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
 
     return user
+
 
