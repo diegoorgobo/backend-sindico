@@ -3,11 +3,22 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-# Em produção, use variáveis de ambiente. Ex: os.getenv("DATABASE_URL") 
-# String de conexão de exemplo (substitua pela sua do Supabase) ------------ senha: JRhKVTLayVK1cySk
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres.jqlygddtjkvtuckwpucp:JRhKVTLayVK1cySk@aws-1-sa-east-1.pooler.supabase.com:6543/postgres"
+# 1. Tenta pegar a URL do Render (Variável de Ambiente)
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
+# 2. Se não existir (estamos local), usa uma string padrão ou SQLite para teste
+if not SQLALCHEMY_DATABASE_URL:
+    # Ajuste aqui para o seu banco local se preferir
+    SQLALCHEMY_DATABASE_URL = "postgresql://postgres:suasenha@localhost/condomanager"
+
+# 3. CORREÇÃO CRÍTICA PARA RENDER/SUPABASE
+# O SQLAlchemy não aceita 'postgres://', precisa ser 'postgresql://'
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Cria o motor do banco
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -17,5 +28,4 @@ def get_db():
     try:
         yield db
     finally:
-
         db.close()
