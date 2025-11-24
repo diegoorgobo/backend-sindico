@@ -32,6 +32,7 @@ app.add_middleware(
 # É aqui que "ligamos" os novos módulos ao app principal
 app.include_router(documents.router)
 app.include_router(financial.router)
+app.include_router(work_orders.router)
 # ----------------------------
 
 
@@ -76,4 +77,5 @@ async def create_inspection_with_files(
     # Por segurança, vou omitir a repetição da lógica interna para não ficar longo,
     # mas mantenha a função que você já tinha!
     pass
+
 
