@@ -15,7 +15,7 @@ from .routers import documents, financial
 # -----------------------------------
 
 # Cria tabelas no banco (apenas para dev)
-models.Base.metadata.create_all(bind=database.engine)
+#models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="CondoManager API")
 
@@ -77,5 +77,6 @@ async def create_inspection_with_files(
     # Por segurança, vou omitir a repetição da lógica interna para não ficar longo,
     # mas mantenha a função que você já tinha!
     pass
+
 
 
