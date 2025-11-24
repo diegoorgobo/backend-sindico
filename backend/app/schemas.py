@@ -72,7 +72,9 @@ class WorkOrderCreate(BaseConfig):
     item_id: Optional[int] = None
     provider_id: Optional[int] = None
 
-id: int
+# A CLASSE DE RESPOSTA (CORREÇÃO DA INDENTAÇÃO E NOME)
+class WorkOrderResponse(BaseConfig):
+    id: int
     title: str
     description: str
     status: str
@@ -82,4 +84,7 @@ id: int
     photo_after_url: Optional[str] = None
     provider_id: Optional[int] = None
     item_id: Optional[int] = None # Se o relacionamento for carregado
+    
+    # Configuração Pydantic v2
     model_config = ConfigDict(from_attributes=True)
+
