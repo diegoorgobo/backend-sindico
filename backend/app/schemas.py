@@ -72,10 +72,14 @@ class WorkOrderCreate(BaseConfig):
     item_id: Optional[int] = None
     provider_id: Optional[int] = None
 
-class WorkOrderResponse(WorkOrderCreate):
-    id: int
+id: int
+    title: str
+    description: str
     status: str
     created_at: datetime
     closed_at: Optional[datetime] = None
     photo_before_url: Optional[str] = None
     photo_after_url: Optional[str] = None
+    provider_id: Optional[int] = None
+    item_id: Optional[int] = None # Se o relacionamento for carregado
+    model_config = ConfigDict(from_attributes=True)
