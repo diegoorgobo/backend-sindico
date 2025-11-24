@@ -1,26 +1,29 @@
+# backend/app/database.py
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool # <--- 1. IMPORTAR NullPool
+from sqlalchemy.pool import NullPool # Importação do fix para o pooler do Supabase
 import os
 
-# 1. Tenta pegar a URL do Render (Variável de Ambiente)
+# 1. Leitura da variável de ambiente (Render)
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
-# 2. Se não existir (estamos local), usa uma string padrão ou SQLite para teste
+# Fallback para teste local se ENV não estiver setada
 if not SQLALCHEMY_DATABASE_URL:
-    # Ajuste aqui para o seu banco local se preferir
-    SQLALCHEMY_DATABASE_URL = "postgresql://postgres:suasenha@localhost/condomanager"
+    # Use sua string de conexão local aqui se necessário
+    SQLALCHEMY_DATABASE_URL = "postgresql://postgres:suasenha@localhost/condomanager" 
 
-# 3. CORREÇÃO CRÍTICA PARA RENDER/SUPABASE
-# O SQLAlchemy não aceita 'postgres://', precisa ser 'postgresql://'
+# 2. Correção Crítica do Prefixo (Supabase)
+# Substitui 'postgres://' por 'postgresql://' se necessário
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Cria o motor do banco
+# 3. CRIAÇÃO DO MOTOR COM NULLPOOL
+# Desabilita o pooling interno do SQLAlchemy para evitar o conflito SASL com a porta 6543.
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    poolclass=NullPool # <--- 2. APLICAR NULLPOOL AQUI
+    poolclass=NullPool # <--- AQUI ESTÁ A SOLUÇÃO
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -33,5 +36,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
