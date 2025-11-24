@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
+from .routers import documents, financial, work_orders
 import json
 
 # Importações internas
@@ -75,3 +76,4 @@ async def create_inspection_with_files(
     # Por segurança, vou omitir a repetição da lógica interna para não ficar longo,
     # mas mantenha a função que você já tinha!
     pass
+
