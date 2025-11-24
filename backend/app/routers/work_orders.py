@@ -1,11 +1,12 @@
 # backend/app/routers/work_orders.py
 
+from .. import schemas
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict # Para schemas simples
-from .. import schemas
+from .. import database, models, auth, schemas
 
 from .. import database, models, auth # Importa componentes internos
 
@@ -25,7 +26,7 @@ get_db = database.get_db
 
 ### ROTAS DE BUSCA E GESTÃO ###
 
-@router.get("/", response_model=List[models.WorkOrder], summary="Listar Ordens de Serviço por Condomínio")
+@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço por Condomínio")
 async def list_work_orders(
     condominium_id: int,
     db: Session = Depends(get_db),
