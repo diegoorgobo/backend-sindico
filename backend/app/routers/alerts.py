@@ -4,12 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import date, timedelta # ⬅️ Importar timedelta
 from .. import database, models, auth, schemas
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(prefix="/alerts", tags=["Maintenance Alerts & Scheduler"])
 
 get_db = database.get_db
 
 # --- ROTA 1: CRIAÇÃO (Chamada pelo App Flutter) ---
+@router.post("/", response_model=schemas.MaintenanceAlertResponse, status_code=201, summary="Cadastrar novo Aviso de Manutenção")
 @router.post("/", response_model=schemas.MaintenanceAlertResponse, status_code=201, summary="Cadastrar novo Aviso de Manutenção")
 def create_maintenance_alert(
     alert: schemas.MaintenanceAlertCreate,
@@ -25,9 +27,19 @@ def create_maintenance_alert(
     # 2. Cria o registro no banco
     db_alert = models.MaintenanceAlert(**alert.model_dump())
     
-    db.add(db_alert)
-    db.commit()
-    db.refresh(db_alert)
+    try:
+        db.add(db_alert)
+        db.commit() # 🚨 O CRASH OCORRE AQUI (IntegrityError ou FK Violation)
+        db.refresh(db_alert)
+    except IntegrityError as e:
+        db.rollback()
+        # Força o log do erro de integridade (Foreign Key)
+        print(f"INTEGRITY ERROR: {e.orig}") 
+        raise HTTPException(
+            status_code=400, 
+            detail="Falha de integridade: Certifique-se de que o Condomínio ID existe e de que os dados estão válidos."
+        )
+        
     return db_alert
 
 
