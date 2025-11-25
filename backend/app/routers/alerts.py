@@ -47,40 +47,39 @@ def create_maintenance_alert(
 def run_daily_scheduler(db: Session = Depends(get_db)):
     """
     Esta rota é chamada diariamente por um Cron Job externo.
-    Não é exposta na documentação (include_in_schema=False).
+    Verifica se os prazos de manutenção atingiram 30, 7 ou 1 dia de antecedência.
     """
     
     today = date.today()
     
-    # 1. Definir datas de alerta: 30 dias, 7 dias, 1 dia
-    date_one_month = today + timedelta(days=30)
-    date_one_week = today + timedelta(days=7)
-    date_one_day = today + timedelta(days=1)
+    # 1. Buscar todos os alertas que AINDA NÃO VENCERAM e que NÃO FORAM FINALIZADOS.
+    # Assumimos que o due_date é sempre no futuro.
+    alerts = db.query(models.MaintenanceAlert).filter(
+        models.MaintenanceAlert.due_date >= today
+    ).all()
     
     updated_alerts = []
 
-    # 2. Buscar alertas que estão próximos do vencimento
-    alerts = db.query(models.MaintenanceAlert).filter(
-        models.MaintenanceAlert.due_date.in_([date_one_month, date_one_week, date_one_day])
-    ).all()
-    
     for alert in alerts:
-        # Lógica de atualização da flag 'alert_sent'
+        # Calcular a diferença em dias entre o vencimento e hoje
+        days_to_due = (alert.due_date - today).days
         
         updated = False
         
-        # Alerta de 1 Mês (30 dias)
-        if alert.due_date == date_one_month and not alert.alert_sent_1month:
+        # 🚨 AVALIAÇÃO DE PRAZOS (Usamos <= para garantir que o alerta dispare se for hoje ou menos)
+
+        # 1. Alerta de 1 Mês (30 dias)
+        if days_to_due <= 30 and not alert.alert_sent_1month:
             alert.alert_sent_1month = True
             updated = True
         
-        # Alerta de 1 Semana (7 dias)
-        if alert.due_date == date_one_week and not alert.alert_sent_1week:
+        # 2. Alerta de 1 Semana (7 dias)
+        if days_to_due <= 7 and not alert.alert_sent_1week:
             alert.alert_sent_1week = True
             updated = True
             
-        # Alerta de 1 Dia (1 dia)
-        if alert.due_date == date_one_day and not alert.alert_sent_1day:
+        # 3. Alerta de 1 Dia
+        if days_to_due <= 1 and not alert.alert_sent_1day:
             alert.alert_sent_1day = True
             updated = True
 
