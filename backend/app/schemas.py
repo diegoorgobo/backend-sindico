@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import List, Optional
 from datetime import datetime, date
+from typing import Optional
 
 # --- Configuração Base ---
 class BaseConfig(BaseModel):
@@ -20,6 +21,13 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: int
     photo_url: Optional[str] = None
+
+class UserUpdate(BaseConfig):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    photo_url: Optional[str] = None
+    role: Optional[str] = None
+    condominium_id: Optional[int] = None
 
 # --- Token ---
 class Token(BaseModel):
