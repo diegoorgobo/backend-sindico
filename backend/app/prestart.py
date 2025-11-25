@@ -1,6 +1,10 @@
 # backend/prestart.py
 
 import os
+import sys
+
+sys.path.append(os.getcwd())
+
 from app.database import engine, Base
 from app import models # Garante que todos os modelos sejam importados
 
