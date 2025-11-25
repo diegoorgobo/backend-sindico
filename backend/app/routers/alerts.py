@@ -19,24 +19,24 @@ def create_maintenance_alert(
 ):
     """Permite cadastrar um novo prazo de manutenção (seguro, PPCI, etc.)."""
     
-    # 1. Autorização: Garante que o usuário logado pode criar alertas para este condomínio
+    # 1. Autorização: Garante que o usuário logado só crie alertas para seu condomínio
     if current_user.condominium_id != alert.condominium_id:
-        raise HTTPException(status_code=403, detail="Você não pode cadastrar alertas para este condomínio.")
+        raise HTTPException(status_code=403, detail="Acesso negado: ID de condomínio inválido para este usuário.")
 
     # 2. Cria o registro no banco
     db_alert = models.MaintenanceAlert(**alert.model_dump())
     
+    # 3. TRATAMENTO DE ERRO CRÍTICO
     try:
         db.add(db_alert)
-        db.commit() # 🚨 O CRASH OCORRE AQUI (IntegrityError ou FK Violation)
+        db.commit() # 🚨 O CRASH DE FK OCORRE AQUI
         db.refresh(db_alert)
     except IntegrityError as e:
-        db.rollback()
-        # Força o log do erro de integridade (Foreign Key)
-        print(f"INTEGRITY ERROR: {e.orig}") 
+        db.rollback() 
+        # A mensagem de erro que o Render esconde é capturada e retornada de forma limpa.
         raise HTTPException(
             status_code=400, 
-            detail="Falha de integridade: Certifique-se de que o Condomínio ID existe e de que os dados estão válidos."
+            detail="Falha de integridade: Verifique se o Condomínio ID existe."
         )
         
     return db_alert
