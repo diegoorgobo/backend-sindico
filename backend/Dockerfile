@@ -18,7 +18,10 @@ RUN apt-get update && apt-get install -y \
 COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-# 6. Copiar o código da aplicação
+# 6. Copiar o script de inicialização do DB
+COPY ./app/prestart.py /code/app/prestart.py 
+
+# 7. Copiar o código da aplicação
 COPY ./app /code/app
 
 # 7. Comando para iniciar o servidor
@@ -26,4 +29,5 @@ COPY ./app /code/app
 # Se rodar local, usa a porta 8000.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 CMD ["sh", "-c", "python app/prestart.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+
 
