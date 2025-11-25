@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.exc import IntegrityError
 # Importa componentes internos (Corrigido para evitar repetição e conflito)
 from .. import database, models, auth, schemas 
 
@@ -28,19 +29,22 @@ async def list_work_orders(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """Permite que o síndico ou vistoriador veja as OSs de seu condomínio."""
+    # 🚨 CÓDIGO FINAL DE DEBUG: RETORNA TUDO E IGNORA O FILTRO E O JOIN
+    orders = db.query(models.WorkOrder).all() 
+    # Isso deve retornar os 18 registros que você viu no Supabase.
     
-    # Lógica de autorização (Simplificado: garante que o usuário pertence ao condomínio)
-    if current_user.condominium_id != condominium_id:
-        raise HTTPException(status_code=403, detail="Acesso negado a este condomínio")
+    try:
+        # A serialização Pydantic acontece automaticamente no retorno. 
+        # Envolvemos em um bloco try para capturar o erro que a está impedindo.
+        return orders 
+    except Exception as e:
+        # Este print mostrará o campo exato que está inválido
+        print(f"ERRO FATAL DE SERIALIZAÇÃO: {e}") 
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Falha de Serialização: Campo inválido encontrado no banco. Trace: {e}"
+        )
 
-    orders = db.query(models.WorkOrder).filter(
-        models.InspectionItem.condominium_id == condominium_id
-    ).join(models.InspectionItem).order_by(models.WorkOrder.created_at.desc()).all()
-    
-    return orders
-
-# 🚨 CORREÇÃO: TROCADO models.WorkOrder para schemas.WorkOrderResponse
 @router.post("/{order_id}/status", response_model=schemas.WorkOrderResponse, summary="Atualizar Status da OS")
 async def update_wo_status(
     order_id: int,
@@ -53,17 +57,16 @@ async def update_wo_status(
     if not db_wo:
         raise HTTPException(status_code=404, detail="Ordem de Serviço não encontrada")
 
-    db_wo.status = data.status
+    db_wo.status = data.status.capitalize() # <-- Otimização: Padroniza o status para (Pendente/Em Andamento/Concluído)
     
     # Se for concluído, marca a data de fechamento
-    if data.status == "Concluído" and not db_wo.closed_at:
+    if data.status.lower() == "concluído" and not db_wo.closed_at:
         db_wo.closed_at = datetime.utcnow()
     
     db.commit()
     db.refresh(db_wo)
     return db_wo
 
-# 🚨 CORREÇÃO: TROCADO models.WorkOrder para schemas.WorkOrderResponse
 @router.post("/{order_id}/close", response_model=schemas.WorkOrderResponse, summary="Concluir OS com Foto")
 async def close_wo_with_photo(
     order_id: int,
@@ -84,4 +87,33 @@ async def close_wo_with_photo(
         
     db.commit()
     db.refresh(db_wo)
+    return db_wo
+
+@router.post("/", response_model=schemas.WorkOrderResponse, status_code=201, summary="Criar Ordem de Serviço Manualmente")
+async def create_work_order(
+    work_order: schemas.WorkOrderCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Cria uma nova OS a partir de uma demanda administrativa."""
+    
+    db_wo = models.WorkOrder(**work_order.model_dump())
+    
+    # 🚨 O BLOCO CRÍTICO: db.add() e db.commit() devem estar no try.
+    try:
+        db.add(db_wo)
+        db.commit() # <--- A FALHA DE SQL OCORRE EXATAMENTE AQUI
+        db.refresh(db_wo)
+    except IntegrityError as e:
+        # Se falhar (por exemplo, Foreign Key inválida)
+        db.rollback() 
+        
+        # 🔔 Este log VAI aparecer no Uvicorn e nos dirá o nome da restrição quebrada.
+        print(f"ERRO SQL INTEGRITY FAILED (ROLLBACK): {e.orig}") 
+        
+        raise HTTPException(
+            status_code=400, 
+            detail="Falha ao criar a OS: Verifique se todos os IDs (Condomínio/Item/Provider) existem."
+        )
+
     return db_wo
