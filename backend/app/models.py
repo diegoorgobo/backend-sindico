@@ -72,15 +72,16 @@ class InspectionItem(Base):
     __tablename__ = "inspection_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String) # Porta entrada, Extintores, etc.
-    status = Column(String) # Bom, Regular, Ruim, N/A
+    name = Column(String) 
+    status = Column(String) 
     photo_url = Column(String, nullable=True)
     observation = Column(Text, nullable=True)
     
     inspection_id = Column(Integer, ForeignKey("inspections.id"))
     inspection = relationship("Inspection", back_populates="items")
     
-    work_order = relationship("WorkOrder", uselist=False, back_populates="item")
+    # 🚨 CRÍTICO: Define o relacionamento com a OS (uselist=False pois um item só pode ter uma OS)
+    work_order = relationship("WorkOrder", uselist=False, back_populates="item", cascade="all, delete-orphan")
 
 class WorkOrder(Base):
     __tablename__ = "work_orders"
@@ -88,7 +89,7 @@ class WorkOrder(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
     description = Column(Text)
-    status = Column(String, default="Pendente") # Pendente, Em Andamento, Concluído
+    status = Column(String, default="Pendente")
     created_at = Column(DateTime, default=datetime.utcnow)
     closed_at = Column(DateTime, nullable=True)
     
@@ -98,7 +99,8 @@ class WorkOrder(Base):
     item_id = Column(Integer, ForeignKey("inspection_items.id"), nullable=True)
     provider_id = Column(Integer, ForeignKey("service_providers.id"), nullable=True)
     
-    item = relationship("InspectionItem", back_populates="work_order")
+    # 🚨 CRÍTICO: Define o relacionamento com o InspectionItem
+    item = relationship("InspectionItem", back_populates="work_order") 
     provider = relationship("ServiceProvider", back_populates="work_orders")
 
 class ChatMessage(Base):
