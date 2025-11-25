@@ -131,9 +131,7 @@ def list_messages(
 
     # 2. Carregar todas as mensagens ordenadas por data
     # Usa options(joinedload(models.Message.user)) para carregar o autor (User) em uma única query (otimização)
-    messages = db.query(models.Message).options(
-        joinedload(models.Message.user)
-    ).filter(
+    messages = db.query(models.Message).filter(
         models.Message.work_order_id == work_order_id
     ).order_by(
         models.Message.created_at
