@@ -17,7 +17,6 @@ from .routers import documents, financial
 
 # Cria tabelas no banco (apenas para dev)
 #models.Base.metadata.create_all(bind=database.engine)
-app.add_middleware(...) # CORS
 app = FastAPI(title="CondoManager API")
 
 # Configuração de CORS
@@ -128,6 +127,7 @@ async def create_inspection_with_files(
     db.commit() # Salva todas as alterações (vistoria, itens, OSs)
     
     return {"status": "success", "inspection_id": db_inspection.id, "message": "Vistoria e Ordens de Serviço (se necessário) criadas com sucesso."}
+
 
 
 
