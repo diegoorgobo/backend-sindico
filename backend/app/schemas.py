@@ -3,6 +3,20 @@ from typing import List, Optional
 from datetime import datetime, date
 from typing import Optional
 
+
+class CondominiumResponse(BaseModel):
+    id: int
+    name: str
+    cnpj: str
+    address: Optional[str] = None
+    
+    # Campos para White Labeling
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = "#1A1A1A" # Cor primária padrão (Dark Grey)
+    secondary_color: Optional[str] = "#007BFF" # Cor secundária padrão (Blue)
+    tertiary_color: Optional[str] = "#FFFFFF" # Cor terciária (Branco)
+
+    model_config = ConfigDict(from_attributes=True)
 # --- Configuração Base ---
 class BaseConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -120,5 +134,6 @@ class MessageResponse(MessageBase):
 
     class Config:
         orm_mode = True
+
 
 
