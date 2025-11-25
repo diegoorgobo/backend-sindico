@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
-from .routers import documents, financial, work_orders, condominiums, users
-from .routers import documents, financial, work_orders, condominium
+from .routers import documents, financial, work_orders, condominiums, users, condominium, alerts
 
 import json
 # Importações internas
@@ -36,6 +35,7 @@ app.include_router(work_orders.router)
 app.include_router(condominiums.router)
 app.include_router(users.router)
 app.include_router(condominium.router)
+app.include_router(alerts.router)
 # ----------------------------
 
 
@@ -127,6 +127,7 @@ async def create_inspection_with_files(
     db.commit() # Salva todas as alterações (vistoria, itens, OSs)
     
     return {"status": "success", "inspection_id": db_inspection.id, "message": "Vistoria e Ordens de Serviço (se necessário) criadas com sucesso."}
+
 
 
 
