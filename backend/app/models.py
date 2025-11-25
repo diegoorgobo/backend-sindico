@@ -102,6 +102,7 @@ class WorkOrder(Base):
     # 🚨 CRÍTICO: Define o relacionamento com o InspectionItem
     item = relationship("InspectionItem", back_populates="work_order") 
     provider = relationship("ServiceProvider", back_populates="work_orders")
+    messages = relationship("Message", back_populates="work_order", cascade="all, delete-orphan") # ⬅️ NOVO: Relacionamento para carregar mensagens
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -151,3 +152,17 @@ class Document(Base):
     
     condominium_id = Column(Integer, ForeignKey("condominiums.id"))
     condominium = relationship("Condominium", back_populates="documents")
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relacionamentos
+    work_order = relationship("WorkOrder", back_populates="messages")
+    user = relationship("User") # Relacionamento com o usuário que enviou
+
