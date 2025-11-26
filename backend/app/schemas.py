@@ -106,14 +106,24 @@ class WorkOrderResponse(BaseModel):
     title: str
     description: str
     status: str
+    
+    # Datas (Podem ser nulas se a OS não foi fechada)
     created_at: datetime
     closed_at: Optional[datetime] = None
-    condominium: Optional[SimpleCondo] = None
-    item_id: Optional[int] = None
+    
+    # Fotos (Podem ser nulas)
+    photo_before_url: Optional[str] = None
+    photo_after_url: Optional[str] = None
+    
+    # 🚨 CHAVES ESTRANGEIRAS (CRÍTICO)
+    item_id: Optional[int] = None      # <--- Deve ser Optional para OSs manuais
     provider_id: Optional[int] = None
     
+    # Relacionamento (Será NULL se o item_id for NULL)
+    condominium: Optional[SimpleCondo] = None 
+    
     model_config = ConfigDict(from_attributes=True)
-
+    
 class UserMessage(BaseModel):
     # Schema simplificado para exibir o autor da mensagem
     id: int
@@ -171,6 +181,7 @@ class CondominiumBase(BaseModel):
 # Usamos este schema para a entrada de dados (POST/PUT)
 class CondominiumCreate(CondominiumBase):
     pass
+
 
 
 
