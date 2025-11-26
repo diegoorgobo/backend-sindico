@@ -35,7 +35,9 @@ def list_work_orders(
     """Filtra as OSs pelo condomínio e ordena por status ou data."""
     
     # 1. INICIALIZAÇÃO DA QUERY (Definida UMA ÚNICA VEZ)
-    query = db.query(models.WorkOrder)
+    query = db.query(models.WorkOrder).options(
+        joinedload(models.WorkOrder.item).joinedload(models.InspectionItem.condominium)
+    )
 
     # Aplica o carregamento Eager Load para obter o nome do Condomínio (CRÍTICO)
     # Usa outerjoin para não excluir OSs manuais (item_id=null)
