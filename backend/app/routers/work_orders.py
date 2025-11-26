@@ -49,21 +49,25 @@ def list_work_orders(
     orders_serializable = []
     for row in raw_results:
         # Mapeamento manual, forçando valores seguros para tipos complexos
-        orders_serializable.append(schemas.WorkOrderResponse(
+       orders_serializable.append(schemas.WorkOrderResponse(
+            # Campos Obrigatórios e Básicos
             id=row[0],
             title=row[1],
-            description=row[2] or "Sem descrição", # Fallback para string
+            description=row[2] or "Sem descrição",
             status=row[3],
             
-            # 🚨 FIX CRÍTICO: Injeta datetime.utcnow() para o campo obrigatório 'created_at'
-            created_at=datetime.utcnow(), 
+            # Datas (Usa o dado real do DB e converte para string ISO)
+            created_at=row[4].isoformat() if row[4] else datetime.utcnow().isoformat(),
+            closed_at=row[5].isoformat() if row[5] else None,
+
+            # Campos Opcionais
+            photo_before_url=row[6],
+            photo_after_url=row[7],
+            item_id=row[8],
+            provider_id=row[9],
             
-            closed_at=None,
-            photo_before_url=None,
-            photo_after_url=None,
-            item_id=row[4],
-            provider_id=None,
-            condominium: None,
+            # 🚨 CORREÇÃO: Mapeamento de relacionamento (Deve ser key=value)
+            condominium=None, 
         ).model_dump())
         
     return orders_serializable
