@@ -95,20 +95,23 @@ class WorkOrderCreate(BaseConfig):
     item_id: Optional[int] = None
     provider_id: Optional[int] = None
 
+class SimpleCondo(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
 # A CLASSE DE RESPOSTA (CORREÇÃO DA INDENTAÇÃO E NOME)
-class WorkOrderResponse(BaseConfig):
+class WorkOrderResponse(BaseModel):
     id: int
     title: str
     description: str
     status: str
     created_at: datetime
     closed_at: Optional[datetime] = None
-    photo_before_url: Optional[str] = None
-    photo_after_url: Optional[str] = None
-    provider_id: Optional[int] = None
-    item_id: Optional[int] = None # Se o relacionamento for carregado
     
-    # Configuração Pydantic v2
+    # 🚨 NOVO CAMPO: Condomínio Aninhado
+    condominium: Optional[SimpleCondo] = None
+    
     model_config = ConfigDict(from_attributes=True)
 
 class UserMessage(BaseModel):
@@ -168,6 +171,7 @@ class CondominiumBase(BaseModel):
 # Usamos este schema para a entrada de dados (POST/PUT)
 class CondominiumCreate(CondominiumBase):
     pass
+
 
 
 
