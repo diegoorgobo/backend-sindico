@@ -28,40 +28,38 @@ get_db = database.get_db
 @router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço com Filtros")
 def list_work_orders(
     condominium_id: Optional[int] = None,
-    sort_by: str = "status", # 'recent', 'status'
+    sort_by: str = "status",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Filtra as OSs pelo condomínio e ordena por status ou data."""
     
-    # Base da Query: Começa com WorkOrder
+    # 🚨 CORREÇÃO CRÍTICA: Inicializa a query base AQUI.
+    query = db.query(models.WorkOrder)
+
+    # 1. CARREGAMENTO E JOIN (Eager Loading)
+    # Aplica o joinedload na query inicial
     query = query.options(
         joinedload(models.WorkOrder.item).joinedload(models.InspectionItem.condominium)
     )
-
-    # 1. CARREGAMENTO E JOIN (CRÍTICO)
-    # Usamos OUTERJOIN para incluir OSs que NÃO têm InspectionItem (OSs Manuais)
-    query = query.outerjoin(models.InspectionItem).options(
-        # 🚨 Carregamento Eager Load: Busca o Condomínio via Item
-        joinedload(models.WorkOrder.item).joinedload(models.InspectionItem.condominium)
-    )
     
-    # 2. AUTORIZAÇÃO E FILTRAGEM
+    # 2. FILTRAGEM E AUTORIZAÇÃO (o restante da lógica)
     if current_user.role != 'Programador':
         # Filtra pelo Condomínio ID do usuário logado
-        # O .has() é mais robusto para relacionamentos que podem ser NULL (Outer Join)
+        # Esta sintaxe cria o JOIN necessário para o filtro de segurança
         query = query.filter(
             models.WorkOrder.item.has(models.InspectionItem.condominium_id == current_user.condominium_id)
         )
-        # Se você tiver OSs manuais (item_id=null), você precisa de OR logic para exibi-las.
-        # No momento, vamos manter este filtro de segurança.
 
+    # ... (o restante do código de filtragem e ordenação) ...
+
+    # 3. FILTRAGEM POR QUERY PARAMETER
     if condominium_id:
         query = query.filter(models.WorkOrder.item.has(models.InspectionItem.condominium_id == condominium_id))
 
-    # 3. ORDENAÇÃO
+    # 4. ORDENAÇÃO
     if sort_by == 'status':
-        # Ordenação por Status: Pendente (1) -> Em Andamento (2) -> Concluído (3)
+        # ... (lógica de ordenação por status) ...
         status_order = case(
             (models.WorkOrder.status == 'Pendente', 1),
             (models.WorkOrder.status == 'Em Andamento', 2),
@@ -69,14 +67,12 @@ def list_work_orders(
             else_=4
         )
         query = query.order_by(status_order, models.WorkOrder.created_at.desc())
-    else: # Default: Mais Recente ('recent')
+    else:
         query = query.order_by(models.WorkOrder.created_at.desc())
 
     orders = query.all()
-    
-    # 4. Retorna a lista (que deve incluir as OSs manuais, pois o OUTERJOIN foi usado)
     return orders
-
+    
 @router.post("/{order_id}/status", response_model=schemas.WorkOrderResponse, summary="Atualizar Status da OS")
 async def update_wo_status(
     order_id: int,
