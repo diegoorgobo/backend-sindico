@@ -42,6 +42,7 @@ class User(Base):
     
     inspections = relationship("Inspection", back_populates="surveyor")
     sent_messages = relationship("Message", back_populates="user") # ⬅️ CORRIGIDO: Referencia a classe Message
+    inspection_messages = relationship("ChatMessage", back_populates="sender")
 
 class ServiceProvider(Base):
     __tablename__ = "service_providers"
@@ -127,7 +128,7 @@ class ChatMessage(Base): # Renomeado de ChatMessage para evitar conflito
     sender_id = Column(Integer, ForeignKey("users.id"))
     
     inspection = relationship("Inspection", back_populates="messages")
-    sender = relationship("User", back_populates="sent_messages")
+    sender = relationship("User", back_populates="inspection_messages")
 
 class FinancialRecord(Base):
     __tablename__ = "financial_records"
@@ -185,3 +186,4 @@ class MaintenanceAlert(Base):
     
     condominium_id = Column(Integer, ForeignKey("condominiums.id"))
     condominium = relationship("Condominium", back_populates="maintenance_alerts")
+
