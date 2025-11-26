@@ -88,8 +88,10 @@ class InspectionItem(Base):
 
 class WorkOrder(Base):
     __tablename__ = "work_orders"
+    __table_args__ = {'schema': 'public'}
 
     id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
     title = Column(String)
     description = Column(Text)
     status = Column(String, default="Pendente")
@@ -171,6 +173,7 @@ class MaintenanceAlert(Base):
     
     condominium_id = Column(Integer, ForeignKey("condominiums.id"))
     condominium = relationship("Condominium", back_populates="maintenance_alerts")
+
 
 
 
