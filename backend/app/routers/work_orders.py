@@ -45,25 +45,21 @@ def list_work_orders(
 
     # 3. AUTORIZAÇÃO E FILTRAGEM (CRÍTICA)
     if current_user.role != 'Programador':
-        user_condo_id = current_user.condominium_id
+        # 🚨 COMENTAR ESTE BLOCO INTEIRO PARA TESTE 🚨
+        # user_condo_id = current_user.condominium_id
         
-        # Se o usuário não tem um condomínio vinculado, retorna lista vazia (segurança)
-        if user_condo_id is None:
-            return [] 
-
-        query = query.filter(
-            or_(
-                # 1. OSs vinculadas ao condomínio do usuário logado
-                models.InspectionItem.condominium_id == user_condo_id,
-                
-                # 2. OSs sem vínculo (manuais) criadas pelo usuário (item_id IS NULL)
-                models.WorkOrder.item_id.is_(None)
-            )
-        )
+        # if user_condo_id is not None:
+        #     query = query.filter(
+        #         or_(
+        #             models.InspectionItem.condominium_id == user_condo_id,
+        #             models.WorkOrder.item_id.is_(None)
+        #         )
+        #     )
+        # ----------------------------------------------------------------------
+        pass # Mantém o código vazio para não quebrar a indentação
     
     # 4. FILTRAGEM POR QUERY PARAMETER (Filtro por dropdown)
     if condominium_id:
-        # Se o dropdown for usado, filtra estritamente pelo ID selecionado
         query = query.filter(models.InspectionItem.condominium_id == condominium_id)
 
     # 5. ORDENAÇÃO
