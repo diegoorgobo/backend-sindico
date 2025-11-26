@@ -25,56 +25,53 @@ get_db = database.get_db
 
 ### ROTAS DE BUSCA E GESTÃO ###
 
-@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço com Filtros")
+@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (Diagnóstico Bruto)")
 def list_work_orders(
     condominium_id: Optional[int] = None,
     sort_by: str = "status",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """Filtra as OSs pelo condomínio e ordena por status ou data."""
+    """Retorna dados brutos para confirmar a leitura do DB, ignorando o ORM."""
     
-    # 1. CRIAÇÃO DA QUERY BASE (Sem JOIN explícito aqui para evitar conflito de aliases)
-    query = db.query(models.WorkOrder)
-
-    # 🚨 FIX CRÍTICO: Aplica o LEFT OUTER JOIN e Eager Loading
-    query = query.outerjoin(models.InspectionItem).options(
-        joinedload(models.WorkOrder.item).joinedload(models.InspectionItem.condominium)
-    )
-
-    # 2. AUTORIZAÇÃO E FILTRAGEM (Restaurando a segurança)
-    '''if current_user.role != 'Programador':
-        user_condo_id = current_user.condominium_id
-        
-        # Filtra para incluir OSs ligadas ao condo do usuário OU manuais (item_id IS NULL)
-        if user_condo_id is not None:
-            query = query.filter(
-                or_(
-                    models.InspectionItem.condominium_id == user_condo_id,
-                    models.WorkOrder.item_id.is_(None)
-                )
+    try:
+        # 🚨 DIAGNÓSTICO FINAL: SQL BRUTO
+        # Busca apenas os campos essenciais que sabemos que existem
+        raw_data = db.execute(
+            text(
+                "SELECT id, title, description, status, created_at, closed_at, item_id, provider_id FROM work_orders ORDER BY created_at DESC"
             )
-        else:
-            return [] '''
+        ).fetchall()
+        
+        # Converte a lista de tuplas para uma lista de WorkOrderResponse (Pydantic)
+        # ⚠️ Nota: Esta conversão é mais complexa do que o Pydantic lida automaticamente
+        
+        # Vamos usar o método mais simples: criar um objeto serializável
+        orders_serializable = []
+        for row in raw_data:
+            # Assumimos que a ordem dos campos está correta para mapear no WorkOrderResponse
+            orders_serializable.append({
+                'id': row[0],
+                'title': row[1],
+                'description': row[2],
+                'status': row[3],
+                'created_at': row[4].isoformat() if row[4] else None,
+                'closed_at': row[5].isoformat() if row[5] else None,
+                'photo_before_url': None,
+                'photo_after_url': None,
+                'provider_id': row[7],
+                'item_id': row[6],
+                'condominium': None, # Não carregamos o condomínio para este teste
+            })
 
-    # 3. FILTRAGEM POR QUERY PARAMETER
-    if condominium_id:
-        query = query.filter(models.InspectionItem.condominium_id == condominium_id)
+        return orders_serializable
 
-    # 4. ORDENAÇÃO
-    if sort_by == 'status':
-        status_order = case(
-            (models.WorkOrder.status == 'Pendente', 1),
-            (models.WorkOrder.status == 'Em Andamento', 2),
-            (models.WorkOrder.status == 'Concluído', 3),
-            else_=4
+    except Exception as e:
+        print(f"❌ ERRO FATAL NA LEITURA BRUTA: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Falha crítica ao ler dados do banco. Trace: {e}"
         )
-        query = query.order_by(status_order, models.WorkOrder.created_at.desc())
-    else:
-        query = query.order_by(models.WorkOrder.created_at.desc())
-
-    orders = query.all()
-    return orders
     
 @router.post("/{order_id}/status", response_model=schemas.WorkOrderResponse, summary="Atualizar Status da OS")
 async def update_wo_status(
