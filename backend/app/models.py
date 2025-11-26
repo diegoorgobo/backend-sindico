@@ -117,19 +117,6 @@ class ChatMessage(Base):
     inspection = relationship("Inspection", back_populates="messages")
     sender = relationship("User", back_populates="sent_messages")
 
-class MaintenanceAlert(Base):
-    __tablename__ = "maintenance_alerts"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    type = Column(String) # Limpeza Caixa d'água, PPCI, etc.
-    due_date = Column(Date)
-    alert_sent_1month = Column(Boolean, default=False)
-    alert_sent_1week = Column(Boolean, default=False)
-    alert_sent_1day = Column(Boolean, default=False)
-    
-    condominium_id = Column(Integer, ForeignKey("condominiums.id"))
-    condominium = relationship("Condominium", back_populates="maintenance_alerts")
-
 class FinancialRecord(Base):
     __tablename__ = "financial_records"
     
@@ -181,6 +168,7 @@ class MaintenanceAlert(Base):
     
     condominium_id = Column(Integer, ForeignKey("condominiums.id"))
     condominium = relationship("Condominium", back_populates="maintenance_alerts")
+
 
 
 
