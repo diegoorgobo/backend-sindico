@@ -51,17 +51,17 @@ def list_work_orders(
     orders_serializable = []
     for row in raw_results:
         orders_serializable.append(schemas.WorkOrderResponse(
-            id=row[0],
-            title=row[1],
-            description=row[2],
-            status=row[3],
-            created_at=row[4].isoformat() if row[4] else None,
-            closed_at=row[5].isoformat() if row[5] else None,
-            photo_before_url: row[6],
-            photo_after_url: row[7],
-            item_id: row[8],
-            provider_id: row[9],
-            condominium: None, # Omissão de relacionamento
+            'id':row[0],
+            'title':row[1],
+            'description':row[2],
+            'status':row[3],
+            'created_at':row[4].isoformat() if row[4] else None,
+            'closed_at':row[5].isoformat() if row[5] else None,
+            'photo_before_url': row[6],
+            'photo_after_url': row[7],
+            'item_id': row[8],
+            'provider_id': row[9],
+            'condominium': None, # Omissão de relacionamento
         ).model_dump())
         
     return orders_serializable
