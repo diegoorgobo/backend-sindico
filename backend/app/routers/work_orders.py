@@ -34,28 +34,40 @@ def list_work_orders(
 ):
     """Filtra as OSs pelo condomínio e ordena por status ou data."""
     
-    # 1. INICIALIZAÇÃO DA QUERY (Definida UMA ÚNICA VEZ)
+    # Base query com eager loading
     query = db.query(models.WorkOrder)
 
-    # Aplica o carregamento Eager Load para obter o nome do Condomínio (CRÍTICO)
-    # Usa outerjoin para não excluir OSs manuais (item_id=null)
-    query = query.options(
+    # 1. CRIAÇÃO DO LEFT JOIN para lidar com item_id=null
+    query = query.outerjoin(models.InspectionItem).options(
         joinedload(models.WorkOrder.item).joinedload(models.InspectionItem.condominium)
     )
-    
-    # 2. AUTORIZAÇÃO E FILTRAGEM
-    # Se o usuário não for Programador, filtra a lista para mostrar apenas OSs ligadas ao seu condomínio
+
+    # 2. AUTORIZAÇÃO E FILTRAGEM (FIX FINAL)
+    # Se o usuário não for Programador, aplicamos o filtro de segurança.
     if current_user.role != 'Programador':
-        # Se você tiver a lógica de filtro comentada, o código funcionará
-        # ... (deixe o filtro como estava, ou remova se ainda estiver comentado) ...
-        pass
+        user_condo_id = current_user.condominium_id
+        
+        # 🚨 Verifica se o usuário tem um condomínio vinculado antes de aplicar o filtro
+        if user_condo_id is None:
+            # Se o usuário logado não tiver condomínio, retorna vazio por segurança.
+            return [] 
 
-    # Filtra pelo ID do Condomínio passado pelo Frontend (Dropdown)
+        query = query.filter(
+            or_(
+                # 1. OSs vinculadas ao condomínio do usuário logado
+                models.InspectionItem.condominium_id == user_condo_id,
+                
+                # 2. OSs sem vínculo (manuais) criadas pelo usuário.
+                # (Esta condição é uma otimização, mas a anterior já é necessária para ver o dado)
+                models.WorkOrder.item_id.is_(None())
+            )
+        )
+    
+    # 3. FILTRAGEM POR QUERY PARAMETER (Filtro por dropdown)
     if condominium_id:
-        # Usamos o .has() para filtrar por Condomínio de forma não destrutiva
-        query = query.filter(models.WorkOrder.item.has(models.InspectionItem.condominium_id == condominium_id))
+        query = query.filter(models.InspectionItem.condominium_id == condominium_id)
 
-    # 3. ORDENAÇÃO
+    # 4. ORDENAÇÃO
     if sort_by == 'status':
         status_order = case(
             (models.WorkOrder.status == 'Pendente', 1),
@@ -64,7 +76,7 @@ def list_work_orders(
             else_=4
         )
         query = query.order_by(status_order, models.WorkOrder.created_at.desc())
-    else: # Default: Mais Recente ('recent')
+    else:
         query = query.order_by(models.WorkOrder.created_at.desc())
 
     orders = query.all()
