@@ -20,6 +20,7 @@ class Condominium(Base):
     
     users = relationship("User", back_populates="condominium")
     inspections = relationship("Inspection", back_populates="condominium")
+    inspection_items = relationship("InspectionItem", back_populates="condominium")
     maintenance_alerts = relationship("MaintenanceAlert", back_populates="condominium")
     financials = relationship("FinancialRecord", back_populates="condominium")
     documents = relationship("Document", back_populates="condominium")
@@ -71,6 +72,7 @@ class Inspection(Base):
 class InspectionItem(Base):
     __tablename__ = "inspection_items"
 
+    condominium_id = Column(Integer, ForeignKey("condominiums.id"), nullable=True)
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String) 
     status = Column(String) 
@@ -79,6 +81,7 @@ class InspectionItem(Base):
     
     inspection_id = Column(Integer, ForeignKey("inspections.id"))
     inspection = relationship("Inspection", back_populates="items")
+    condominium = relationship("Condominium")
     
     # 🚨 CRÍTICO: Define o relacionamento com a OS (uselist=False pois um item só pode ter uma OS)
     work_order = relationship("WorkOrder", uselist=False, back_populates="item", cascade="all, delete-orphan")
@@ -168,6 +171,7 @@ class MaintenanceAlert(Base):
     
     condominium_id = Column(Integer, ForeignKey("condominiums.id"))
     condominium = relationship("Condominium", back_populates="maintenance_alerts")
+
 
 
 
