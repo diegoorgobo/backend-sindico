@@ -11,7 +11,6 @@ from . import models, schemas, crud, database, auth
 
 # --- NOVAS IMPORTAÇÕES (ROUTERS) ---
 # Importamos os arquivos que criamos nas pastas 'routers'
-from .routers import documents, financial 
 # -----------------------------------
 
 # Cria tabelas no banco (apenas para dev)
@@ -127,6 +126,7 @@ async def create_inspection_with_files(
     db.commit() # Salva todas as alterações (vistoria, itens, OSs)
     
     return {"status": "success", "inspection_id": db_inspection.id, "message": "Vistoria e Ordens de Serviço (se necessário) criadas com sucesso."}
+
 
 
 
