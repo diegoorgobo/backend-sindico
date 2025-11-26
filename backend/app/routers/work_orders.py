@@ -61,6 +61,7 @@ def list_work_orders(
 
     # 4. ORDENAÇÃO
     if sort_by == 'status':
+        # ... (lógica de ordenação por status mantida) ...
         status_order = case(
             (models.WorkOrder.status == 'Pendente', 1),
             (models.WorkOrder.status == 'Em Andamento', 2),
