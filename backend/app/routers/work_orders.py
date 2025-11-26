@@ -25,57 +25,74 @@ get_db = database.get_db
 
 ### ROTAS DE BUSCA E GESTÃO ###
 
-@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (SQL Mínimo)")
+@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (SQL BRUTO FINAL)")
 def list_work_orders(
     condominium_id: Optional[int] = None,
-    # 🚨 CORREÇÃO 1: Remover o DOIS PONTOS extra na tipagem dos parâmetros
     sort_by: str = "status",
-    db: Session = Depends(get_db), # ⬅️ CORRIGIDO
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """Retorna dados brutos da tabela work_orders sem joins."""
+    """Executa consulta SQL bruta para garantir a listagem e os filtros."""
     
-    # Este é o bloco de SQL Bruto que estava causando erros de sintaxe no servidor
-    # 🚨 FIX CRÍTICO: Reverter para consulta ORM para evitar o erro SyntaxError
+    # 1. MONTAGEM DO SQL BASE (Com LEFT JOIN para incluir o Condomínio e OSs Manuais)
+    sql_base = """
+        SELECT 
+            wo.id, wo.title, wo.description, wo.status, wo.created_at, wo.closed_at, 
+            wo.photo_before_url, wo.photo_after_url, wo.item_id, wo.provider_id,
+            c.name AS condominium_name, c.id AS condominium_id
+        FROM work_orders wo
+        LEFT JOIN inspection_items ii ON wo.item_id = ii.id
+        LEFT JOIN condominiums c ON ii.condominium_id = c.id
+    """
     
-    # 1. CRIAÇÃO DA QUERY BASE e EAGER LOADING
-    query = db.query(models.WorkOrder)
-    query = query.outerjoin(models.InspectionItem).options(
-        joinedload(models.WorkOrder.item).joinedload(models.InspectionItem.condominium)
-    )
-
-    # 2. AUTORIZAÇÃO E FILTRAGEM (Obrigatório para segurança)
-    if current_user.role != 'Programador':
+    where_clauses = ["1=1"] # Condição base
+    
+    # 2. FILTRO DE SEGURANÇA (Para usuários não-Programadores)
+    if current_user.role != 'Programador' and current_user.condominium_id is not None:
         user_condo_id = current_user.condominium_id
+        # Inclui OSs ligadas ao condo do usuário OU as OSs que não têm item (manual)
+        where_clauses.append(f"""
+            (ii.condominium_id = {user_condo_id} OR wo.item_id IS NULL)
+        """)
         
-        if user_condo_id is not None:
-            query = query.filter(
-                or_(
-                    models.InspectionItem.condominium_id == user_condo_id,
-                    models.WorkOrder.item_id.is_(None)
-                )
-            )
-        else:
-            return [] 
+    # 3. FILTRO POR DROPDOWN
+    if condominium_id is not None:
+        where_clauses.append(f"ii.condominium_id = {condominium_id}")
+
+    # 4. ORDENAÇÃO (Simplificada, usando o campo direto do SQL)
+    order_clause = "wo.status, wo.created_at DESC"
+    if sort_by == 'recent':
+        order_clause = "wo.created_at DESC"
+
+    # 5. EXECUÇÃO DO SQL BRUTO FINAL
+    sql_query = text(f"""
+        {sql_base}
+        WHERE {' AND '.join(where_clauses)}
+        ORDER BY {order_clause} 
+    """)
+
+    raw_results = db.execute(sql_query).fetchall()
     
-    # 3. FILTRAGEM POR QUERY PARAMETER
-    if condominium_id:
-        query = query.filter(models.InspectionItem.condominium_id == condominium_id)
-
-    # 4. ORDENAÇÃO
-    if sort_by == 'status':
-        status_order = case(
-            (models.WorkOrder.status == 'Pendente', 1),
-            (models.WorkOrder.status == 'Em Andamento', 2),
-            (models.WorkOrder.status == 'Concluído', 3),
-            else_=4
-        )
-        query = query.order_by(status_order, models.WorkOrder.created_at.desc())
-    else: # Default: Mais Recente ('recent')
-        query = query.order_by(models.WorkOrder.created_at.desc())
-
-    orders = query.all()
-    return orders
+    # 6. MAPEAMENTO MANUAL PARA PYDANTIC/JSON
+    orders_serializable = []
+    for row in raw_results:
+        orders_serializable.append(schemas.WorkOrderResponse(
+            id=row[0],
+            title=row[1],
+            description=row[2],
+            status=row[3],
+            created_at=row[4].isoformat() if row[4] else None,
+            closed_at=row[5].isoformat() if row[5] else None,
+            photo_before_url=row[6],
+            photo_after_url=row[7],
+            item_id=row[8],
+            provider_id=row[9],
+            # Mapeamento do objeto Condomínio (o row[11] é o ID do Condomínio)
+            condominium=schemas.SimpleCondo(id=row[11], name=row[10]) 
+                        if row[11] is not None else None,
+        ).model_dump())
+        
+    return orders_serializable
 
     
 @router.post("/{order_id}/status", response_model=schemas.WorkOrderResponse, summary="Atualizar Status da OS")
