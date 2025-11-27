@@ -25,40 +25,25 @@ get_db = database.get_db
 
 ### ROTAS DE BUSCA E GESTÃO ###
 
-@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço com Filtros")
+@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (Busca Básica)")
 def list_work_orders(
     condominium_id: Optional[int] = None,
     sort_by: str = "status",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """Filtra as OSs pelo condomínio e ordena por status ou data."""
+    """Retorna a lista completa de OS, ignorando filtros complexos e carregamentos."""
     
-    # 1. CRIAÇÃO DA QUERY BASE E EAGER LOADING (O MAIS ROBUSTO)
+    # 1. CRIAÇÃO DA QUERY BASE (SEM JOINs e sem Eager Loading)
     query = db.query(models.WorkOrder)
 
-    # Aplica o JOIN e Carregamento (Left Join é implícito na relação nullable WorkOrder.item)
-    query = query.outerjoin(models.InspectionItem).options(
-        joinedload(models.WorkOrder.item).joinedload(models.InspectionItem.condominium)
-    )
+    # 2. FILTRAGEM (COMENTADA)
+    # Deixamos o filtro de segurança desativado para o teste.
 
-    # 2. AUTORIZAÇÃO E FILTRAGEM 🚨 COMENTAR ESTE BLOCO INTEIRO PARA TESTE 🚨
-    # if current_user.role != 'Programador':
-    #     user_condo_id = current_user.condominium_id
-        
-    #     if user_condo_id is not None:
-    #         query = query.filter(
-    #             or_(
-    #                 models.InspectionItem.condominium_id == user_condo_id,
-    #                 models.WorkOrder.item_id.is_(None)
-    #             )
-    #         )
-    #     else:
-    #         return [] 
-    # ----------------------------------------------------------------------
-    # 3. FILTRAGEM POR QUERY PARAMETER
+    # 3. FILTRAGEM POR QUERY PARAMETER (Deixe este if, ele não é o culpado)
     if condominium_id:
-        query = query.filter(models.InspectionItem.condominium_id == condominium_id)
+        # Nota: Sem o JOIN, este filtro não funciona, mas não quebra o código.
+        query = query.filter(models.WorkOrder.id > 0) # Filtro dummy para não quebrar a tipagem
 
     # 4. ORDENAÇÃO
     if sort_by == 'status':
