@@ -32,18 +32,21 @@ def list_work_orders(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """Retorna dados brutos da tabela work_orders sem joins."""
+    """Executa consulta SQL bruta com JOINs e schema explícito para carregar o nome do Condomínio."""
     
     from sqlalchemy import text 
     from datetime import datetime
     
-    # 🚨 FIX FINAL DE VISIBILIDADE: Forçar o prefixo 'public.' na tabela
+    # 🚨 CONSULTA SQL BRUTA COM JOINs e prefixo 'public.' em todas as tabelas
     query = text("""
         SELECT 
-            id, title, description, status, created_at, closed_at, 
-            photo_before_url, photo_after_url, item_id, provider_id
-        FROM public.work_orders -- ⬅️ CORRIGIDO AQUI
-        ORDER BY created_at DESC
+            wo.id, wo.title, wo.description, wo.status, wo.created_at, wo.closed_at, 
+            wo.photo_before_url, wo.photo_after_url, wo.item_id, wo.provider_id,
+            c.name AS condominium_name, c.id AS condominium_id -- ⬅️ ÍNDICES 10 E 11
+        FROM public.work_orders wo
+        LEFT JOIN public.inspection_items ii ON wo.item_id = ii.id
+        LEFT JOIN public.condominiums c ON ii.condominium_id = c.id
+        ORDER BY wo.created_at DESC
     """)
     
     raw_results = db.execute(query).fetchall()
@@ -51,22 +54,27 @@ def list_work_orders(
     # Mapeamento manual para Pydantic
     orders_serializable = []
     for row in raw_results:
-        # Mapeamento direto dos 10 campos da tabela work_orders
+        # A SQLAlchemy já retorna um objeto DATETIME. Apenas converte para ISO.
+        created_at_iso = row[4].isoformat() if row[4] else datetime.utcnow().isoformat()
+        closed_at_iso = row[5].isoformat() if row[5] else None
+
         orders_serializable.append(schemas.WorkOrderResponse(
             id=row[0],
             title=row[1],
             description=row[2],
             status=row[3],
             
-            created_at=row[4].isoformat() if row[4] else datetime.utcnow().isoformat(),
-            closed_at=row[5].isoformat() if row[5] else None, 
+            created_at=created_at_iso,
+            closed_at=closed_at_iso, 
             
             photo_before_url=row[6],
             photo_after_url=row[7],
             item_id=row[8],
             provider_id=row[9],
             
-            condominium=None, 
+            # 🚨 Mapeamento do objeto Condomínio (ID=row[11], Name=row[10])
+            condominium=schemas.SimpleCondo(id=row[11], name=row[10]) 
+                        if row[11] is not None else None,
         ).model_dump())
         
     return orders_serializable
