@@ -77,6 +77,8 @@ def list_work_orders(
 
     raw_results = db.execute(sql_query).fetchall()
 
+    print(f"DEBUG_FINAL_ROWS: O BANCO RETORNOU {len(raw_results)} REGISTROS.")
+
     # 5. MAPEAMENTO MANUAL PARA PYDANTIC/JSON
     orders_serializable = []
     for row in raw_results:
