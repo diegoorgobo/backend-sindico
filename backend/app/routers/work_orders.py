@@ -25,46 +25,57 @@ get_db = database.get_db
 
 ### ROTAS DE BUSCA E GESTÃO ###
 
-@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (Diagnóstico Mínimo)")
+@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (SQL BRUTO FINAL)")
 def list_work_orders(
     condominium_id: Optional[int] = None,
     sort_by: str = "status",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    """Retorna dados brutos da tabela work_orders sem joins."""
     
-    # 🚨 TESTE FINAL: Consulta SQL Bruta MÍNIMA (Apenas campos não-nulos)
+    from sqlalchemy import text # Necessário para SQL
+    
+    # 🚨 CONSULTA SQL BRUTA (MÍNIMA E FUNCIONAL)
     query = text("""
         SELECT 
-            wo.id, wo.title, wo.description, wo.status, wo.item_id
+            wo.id, wo.title, wo.description, wo.status, wo.created_at, wo.closed_at, 
+            wo.photo_before_url, wo.photo_after_url, wo.item_id, wo.provider_id,
+            c.name AS condominium_name, c.id AS condominium_id
         FROM work_orders wo
+        LEFT JOIN inspection_items ii ON wo.item_id = ii.id
+        LEFT JOIN condominiums c ON ii.condominium_id = c.id
         ORDER BY wo.created_at DESC
     """)
     
     raw_results = db.execute(query).fetchall()
 
-    # 🚨 DEBUG: Imprime o total lido para confirmar a leitura da DB
-    print(f"DEBUG_FINAL: RAW WORK ORDER COUNT (TRY): {len(raw_results)}") 
-
     orders_serializable = []
     for row in raw_results:
-        # Mapeamento manual para Pydantic (usando APENAS Named Arguments)
+        # 🚨 CORREÇÃO DE MAPAMENTO: Os índices de data/hora (4 e 5) são lidos diretamente
         orders_serializable.append(schemas.WorkOrderResponse(
-            # Exemplo de como DEVE ESTAR:
-            id=row[0], 
+            id=row[0],
             title=row[1],
             description=row[2],
             status=row[3],
-            created_at=row[4].isoformat() if row[4] else None,
-            # ... (todos os outros campos) ...
             
-            # 🚨 CORREÇÃO CRÍTICA: Mudar a sintaxe para '='
-            condominium=None, 
+            # FIX: A SQLAlchemy já retorna um objeto DATETIME. Apenas converte para ISO.
+            created_at=row[4].isoformat() if row[4] else datetime.utcnow().isoformat(),
+            closed_at=row[5].isoformat() if row[5] else None, 
             
+            photo_before_url=row[6],
+            photo_after_url=row[7],
+            item_id=row[8],
+            provider_id=row[9],
+            
+            # Mapeamento do objeto Condomínio (o row[11] é o ID do Condomínio, row[10] é o nome)
+            condominium={
+                'id': row[11],
+                'name': row[10]
+            } if row[11] is not None else None,
         ).model_dump())
         
     return orders_serializable
-
     
 @router.post("/{order_id}/status", response_model=schemas.WorkOrderResponse, summary="Atualizar Status da OS")
 async def update_wo_status(
