@@ -25,24 +25,24 @@ get_db = database.get_db
 
 ### ROTAS DE BUSCA E GESTÃO ###
 
-@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (SQL BRUTO SEGURO)")
+@router.get("/", response_model=List[schemas.WorkOrderResponse], summary="Listar Ordens de Serviço (SQL BRUTO FINAL)")
 def list_work_orders(
     condominium_id: Optional[int] = None,
     sort_by: str = "status",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """Retorna dados brutos da tabela work_orders sem joins, ignorando filtros."""
+    """Retorna dados brutos da tabela work_orders sem joins."""
     
-    from sqlalchemy import text
-    from datetime import datetime # Necessário para o isoformat
+    from sqlalchemy import text 
+    from datetime import datetime
     
-    # 🚨 CONSULTA SQL BRUTA MÍNIMA SEGURA (Apenas colunas da tabela principal)
+    # 🚨 FIX FINAL DE VISIBILIDADE: Forçar o prefixo 'public.' na tabela
     query = text("""
         SELECT 
             id, title, description, status, created_at, closed_at, 
             photo_before_url, photo_after_url, item_id, provider_id
-        FROM work_orders
+        FROM public.work_orders -- ⬅️ CORRIGIDO AQUI
         ORDER BY created_at DESC
     """)
     
@@ -58,7 +58,6 @@ def list_work_orders(
             description=row[2],
             status=row[3],
             
-            # Conversão segura de datas
             created_at=row[4].isoformat() if row[4] else datetime.utcnow().isoformat(),
             closed_at=row[5].isoformat() if row[5] else None, 
             
@@ -67,8 +66,7 @@ def list_work_orders(
             item_id=row[8],
             provider_id=row[9],
             
-            # Relacionamentos complexos são forçados a None
-            condominium=None,
+            condominium=None, 
         ).model_dump())
         
     return orders_serializable
