@@ -76,22 +76,31 @@ def list_work_orders(
     # 5. MAPEAMENTO MANUAL PARA PYDANTIC/JSON
     orders_serializable = []
     for row in raw_results:
-        # Mapeamento do objeto Condomínio (ID=row[11], Name=row[10])
-        orders_serializable.append(schemas.WorkOrderResponse(
-            id=row[0],
-            title=row[1],
-            description=row[2],
-            status=row[3],
-            created_at=row[4].isoformat() if row[4] else None,
-            closed_at=row[5].isoformat() if row[5] else None,
-            photo_before_url=row[6],
-            photo_after_url=row[7],
-            item_id=row[8],
-            provider_id=row[9],
-            condominium=schemas.SimpleCondo(id=row[11], name=row[10]) 
-                        if row[11] is not None else None,
-        ).model_dump())
-        
+        try:
+            # Mapeamento manual para Pydantic
+            orders_serializable.append(schemas.WorkOrderResponse(
+                id=row[0],
+                title=row[1],
+                description=row[2],
+                status=row[3],
+                
+                # Conversão segura de datas
+                created_at=row[4].isoformat() if row[4] else datetime.utcnow().isoformat(),
+                closed_at=row[5].isoformat() if row[5] else None, 
+                
+                photo_before_url=row[6],
+                photo_after_url=row[7],
+                item_id=row[8],
+                provider_id=row[9],
+                
+                condominium=None,
+            ).model_dump())
+        except Exception as e:
+            # Este print irá aparecer no log do Render, identificando o registro corrompido
+            print(f"DEBUG: FALHA DE SERIALIZAÇÃO NO REGISTRO ID {row[0]}. Erro: {e}")
+            # Ignoramos o registro e continuamos o loop
+            continue
+            
     return orders_serializable
     
 @router.post("/{order_id}/close", response_model=schemas.WorkOrderResponse, summary="Concluir OS com Foto")
